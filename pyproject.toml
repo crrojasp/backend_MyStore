@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "app"
+version = "0.1.0"
+description = ""
+authors = ["Cristian Rojas <crrojasp@unal.edu.co>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+uvicorn = "^0.21.1"
+fastapi = "^0.95.0"
+SQLAlchemy = "^1.4.41"
+sqlmodel = "^0.0.8"
+asyncpg = "^0.26.0"
+psycopg2 = "^2.9.4"
+alembic = "^1.10.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+start="app.main:start"
