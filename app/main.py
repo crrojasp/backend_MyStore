@@ -38,6 +38,8 @@ from app.model.venta import Venta
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField
 from fastapi.exceptions import RequestValidationError
+import asyncio
+
 
 
 ALGORITHM = "HS256"
@@ -72,9 +74,22 @@ def init_app():
         expose_headers=["Content-Type"]
     )
 
+    async def perform_ping():
+        conn = await connect_db()
+        try:
+            await conn.fetchval('SELECT 1;')
+        finally:
+            await conn.close()
+    
+    async def ping_task():
+        while True:
+            await perform_ping()
+            await asyncio.sleep(300)  # Espera 5 minutos antes de enviar la próxima consulta de ping
+
     @app.on_event("startup")
     async def startup():
         app.db_connection = await connect_db()
+        asyncio.create_task(ping_task())
 
     @app.on_event("shutdown")
     async def shutdown():
@@ -132,7 +147,7 @@ def init_app():
                 # Generate JWT with user data
                 user_data = {"id": user_id, "name": name, "email": email}
                 jwt_token = jwt.encode(
-                    {"user": user_data, "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=30)},
+                    {"user": user_data, "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=300)},
                     SECRET_KEY,
                     algorithm="HS256"
                 )
