@@ -96,7 +96,7 @@ def init_app():
         await app.db_connection.close()
 
     async def connect_db():
-        conn = await asyncpg.connect(user='Cristian', password='1234509876', database='test', host='databasetest.cucej1optovn.us-east-1.rds.amazonaws.com')
+        conn = await asyncpg.connect(user='Cristian', password='1234509876', database='database-1', host='databasetest.cucej1optovn.us-east-1.rds.amazonaws.com')
         return conn
 
     # Bloque de funciones de primer necesidad #
@@ -135,10 +135,10 @@ def init_app():
 
     @app.post("/login-utf8")
     async def login(user_credentials: UserLogin, response: Response):
-        query = "SELECT id, name, email, password FROM usuario WHERE email = $1"
+        query = "SELECT id, name, email, password, tipo FROM usuario WHERE email = $1"
         row = await app.db_connection.fetchrow(query, user_credentials.email)
         if row:
-            user_id, name, email, hashed_password_b64 = row
+            user_id, name, email, hashed_password_b64, tipo = row  # Obtener el valor de 'tipo' de la fila
             password_bytes = user_credentials.password.encode('utf-8')
             salt = base64.b64decode(hashed_password_b64)[:64]
             hashed_bytes = hashlib.pbkdf2_hmac('sha256', password_bytes, salt, 100000)
@@ -157,19 +157,13 @@ def init_app():
                 await app.db_connection.execute(update_query, datetime.datetime.utcnow(), name, email, user_id)
 
                 response.headers["Access-Control-Allow-Origin"] = "*"
-                return {"jwt_token": jwt_token}
-                
+                return {"user": {"id": user_id, "name": name, "email": email, "tipo": tipo, "jwt_token": jwt_token}}
             else:
                 response.headers["Access-Control-Allow-Origin"] = "*"
                 return {"message": "Contraseña incorrecta"}
         else:
             response.headers["Access-Control-Allow-Origin"] = "*"
             return {"message": "Usuario no encontrado"}
-
-
-
-
-
 
     # Bloque de funciones CRUD para usuario #
 
