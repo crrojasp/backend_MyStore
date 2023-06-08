@@ -46,7 +46,7 @@ ALGORITHM = "HS256"
 SECRET_KEY = secrets.token_hex(32)
 origins= ["http://localhost:3000",
           "http://localhost:8000",
-          "http://localhost:8888",
+          "http://localhost:80",
           "http://localhost:5432",
           "http://localhost"
           ]
@@ -822,4 +822,4 @@ app = init_app()
 
 def start():
     """Launched with 'poetry run start' at root level """
-    uvicorn.run("app.main:app", host="localhost", port=8888, reload=True)
+    uvicorn.run("app.main:app", host="localhost", port=80, reload=True)
