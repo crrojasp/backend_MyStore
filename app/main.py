@@ -108,62 +108,63 @@ def init_app():
             content={"error": str(exc)}
         )
 
-    @app.post("/register")
-    async def register(user: User):
-        # Verificar si el correo electrónico ya existe en la base de datos
-        query = "SELECT email FROM usuario WHERE email = $1"
-        row = await app.db_connection.fetchrow(query, user.email)
-        if row:
-            return {"message": "El correo electrónico ya está registrado"}
+     @app.get("/register")
+     async def register(request: Request, name: str, email: str, cellphone: str, password: str, tipo: str):
+              # Verificar si el correo electrónico ya existe en la base de datos
+              query = "SELECT email FROM usuario WHERE email = $1"
+              row = await app.db_connection.fetchrow(query, email)
+              if row:
+                  return {"message": "El correo electrónico ya está registrado"}
 
-        # Almacenar el nuevo usuario en la base de datos
-        password_bytes = user.password.encode('utf-8')
-        salt = hashlib.sha256(password_bytes).hexdigest().encode('utf-8')
-        hashed_bytes = hashlib.pbkdf2_hmac('sha256', password_bytes, salt, 100000)
-        hashed_password = salt + hashed_bytes
+              # Almacenar el nuevo usuario en la base de datos
+              password_bytes = password.encode('utf-8')
+              salt = hashlib.sha256(password_bytes).hexdigest().encode('utf-8')
+              hashed_bytes = hashlib.pbkdf2_hmac('sha256', password_bytes, salt, 100000)
+              hashed_password = salt + hashed_bytes
 
-        # Convertir el hash a base64
-        hashed_password_b64 = base64.b64encode(hashed_password).decode('utf-8')
+              # Convertir el hash a base64
+              hashed_password_b64 = base64.b64encode(hashed_password).decode('utf-8')
 
-        query = "INSERT INTO usuario (name, email, cellphone, password, tipo) VALUES ($1::text, $2::text, $3::text, $4::text, $5::text) RETURNING id, name, email, cellphone, tipo"
-        values = (user.name, user.email, user.cellphone, hashed_password_b64, user.tipo)
-        row = await app.db_connection.fetchrow(query, *values)
+              query = "INSERT INTO usuario (name, email, cellphone, password, tipo) VALUES ($1::text, $2::text, $3::text, $4::text, $5::text) RETURNING id, name, email, cellphone, tipo"
+              values = (name, email, cellphone, hashed_password_b64, tipo)
+              row = await app.db_connection.fetchrow(query, *values)
 
-        return {"id": row[0], "name": row[1], "email": row[2], "cellphone": row[3], "tipo": row[4]}
+              return {"id": row[0], "name": row[1], "email": row[2], "cellphone": row[3], "tipo": row[4]}
 
 
 
-    @app.post("/login-utf8")
-    async def login(user_credentials: UserLogin, response: Response):
-        query = "SELECT id, name, email, password, tipo FROM usuario WHERE email = $1"
-        row = await app.db_connection.fetchrow(query, user_credentials.email)
-        if row:
-            user_id, name, email, hashed_password_b64, tipo = row  # Obtener el valor de 'tipo' de la fila
-            password_bytes = user_credentials.password.encode('utf-8')
-            salt = base64.b64decode(hashed_password_b64)[:64]
-            hashed_bytes = hashlib.pbkdf2_hmac('sha256', password_bytes, salt, 100000)
-            hashed_input_password = salt + hashed_bytes
-            if hashed_password_b64.encode('utf-8') == base64.b64encode(hashed_input_password):
-                # Generate JWT with user data
-                user_data = {"id": user_id, "name": name, "email": email}
-                jwt_token = jwt.encode(
-                    {"user": user_data, "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=300)},
-                    SECRET_KEY,
-                    algorithm="HS256"
-                )
+    
+          @app.get("/login-utf8")
+          async def login(request: Request, response: Response, email: str, password: str):
+              query = "SELECT id, name, email, password, tipo FROM usuario WHERE email = $1"
+              row = await app.db_connection.fetchrow(query, email)
+              if row:
+                  user_id, name, email, hashed_password_b64, tipo = row  # Obtener el valor de 'tipo' de la fila
+                  password_bytes = password.encode('utf-8')
+                  salt = base64.b64decode(hashed_password_b64)[:64]
+                  hashed_bytes = hashlib.pbkdf2_hmac('sha256', password_bytes, salt, 100000)
+                  hashed_input_password = salt + hashed_bytes
+                  if hashed_password_b64.encode('utf-8') == base64.b64encode(hashed_input_password):
+                      # Generate JWT with user data
+                      user_data = {"id": user_id, "name": name, "email": email}
+                      jwt_token = jwt.encode(
+                          {"user": user_data, "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=300)},
+                          SECRET_KEY,
+                          algorithm="HS256"
+                      )
 
-                # Update user last login and save name and email
-                update_query = "UPDATE usuario SET last_login = $1, name = $2, email = $3 WHERE id = $4"
-                await app.db_connection.execute(update_query, datetime.datetime.utcnow(), name, email, user_id)
+                      # Update user last login and save name and email
+                      update_query = "UPDATE usuario SET last_login = $1, name = $2, email = $3 WHERE id = $4"
+                      await app.db_connection.execute(update_query, datetime.datetime.utcnow(), name, email, user_id)
 
-                response.headers["Access-Control-Allow-Origin"] = "*"
-                return {"user": {"id": user_id, "name": name, "email": email, "tipo": tipo, "jwt_token": jwt_token}}
-            else:
-                response.headers["Access-Control-Allow-Origin"] = "*"
-                return {"message": "Contraseña incorrecta"}
-        else:
-            response.headers["Access-Control-Allow-Origin"] = "*"
-            return {"message": "Usuario no encontrado"}
+                      response.headers["Access-Control-Allow-Origin"] = "*"
+                      return {"user": {"id": user_id, "name": name, "email": email, "tipo": tipo, "jwt_token": jwt_token}}
+                  else:
+                      response.headers["Access-Control-Allow-Origin"] = "*"
+                      return {"message": "Contraseña incorrecta"}
+              else:
+                  response.headers["Access-Control-Allow-Origin"] = "*"
+                  return {"message": "Usuario no encontrado"}
 
     # Bloque de funciones CRUD para usuario #
 
